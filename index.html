@@ -3,386 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>漫步 V8 - 完美起步版</title>
+    <title>漫步 V9 - 终极除虫版</title>
     <style>
         /* --- 基础样式 --- */
-        body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
-            background: #000; overflow: hidden;
-            font-family: -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            user-select: none; color: white; -webkit-tap-highlight-color: transparent;
-        }
-
-        /* 视频容器 */
-        #vid-box {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 1; display: flex; align-items: center; justify-content: center;
-            overflow: hidden;
-        }
-        video {
-            width: 100%; height: 100%; object-fit: cover;
-            transition: transform 0.1s linear; /* 仅VR位移 */
-        }
-
-        /* UI层 (全透明 + 强阴影) */
-        #hud {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 10; pointer-events: none;
-            display: flex; flex-direction: column; justify-content: space-between;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.5);
-        }
-
-        /* 顶部数据 */
-        .hud-top {
-            padding: 25px; display: flex; justify-content: space-between;
-        }
-        .grp { display: flex; flex-direction: column; }
-        .grp-r { text-align: right; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; user-select: none; }
         
-        .txt-lg { font-size: 52px; font-weight: 800; line-height: 0.9; font-variant-numeric: tabular-nums; }
-        .txt-sm { font-size: 13px; font-weight: bold; color: #ddd; margin-top: 6px; text-transform: uppercase; }
-        .txt-accent { font-size: 16px; color: #00e676; font-weight: bold; margin-top: 4px; }
+        /* 视频 */
+        #vid-wrap { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; display: flex; align-items: center; justify-content: center; }
+        video { width: 100%; height: 100%; object-fit: cover; transition: transform 0.1s linear; }
 
-        /* 底部控制 */
-        .hud-btm {
-            padding: 25px; pointer-events: auto;
-            display: flex; flex-direction: column; gap: 12px;
-        }
-
-        .bar-bg {
-            width: 100%; height: 6px; background: rgba(255,255,255,0.3);
-            border-radius: 3px; overflow: hidden; backdrop-filter: blur(4px);
-        }
-        .bar-fg {
-            height: 100%; width: 0%; background: #00e676;
-            box-shadow: 0 0 10px #00e676; transition: width 0.2s linear;
-        }
-        .time-info { text-align: right; font-size: 12px; opacity: 0.9; }
-
-        /* 设置抽屉 */
-        #drawer {
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            background: rgba(10, 10, 10, 0.98);
-            border-top: 1px solid #333; border-radius: 20px 20px 0 0;
-            padding: 25px; box-sizing: border-box;
-            transform: translateY(110%); transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
-            z-index: 20; pointer-events: auto; color: white;
-        }
-        #drawer.active { transform: translateY(0); }
-
-        .set-row { margin-bottom: 25px; }
-        .set-head { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; color: #aaa; }
-        .set-val { color: #00e676; font-weight: bold; }
+        /* UI */
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; text-shadow: 0 1px 3px black; }
         
-        input[type=range] { width: 100%; height: 4px; background: #444; border-radius: 2px; -webkit-appearance: none; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; background: #fff; border-radius: 50%; margin-top: -9px; box-shadow: 0 2px 5px black; }
-        input[type=range]::-webkit-slider-runnable-track { height: 4px; background: #444; }
+        .top { padding: 20px; display: flex; justify-content: space-between; }
+        .big-txt { font-size: 48px; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .lbl { font-size: 12px; color: #ccc; font-weight: bold; }
+        .sub-txt { font-size: 16px; color: #00e676; font-weight: bold; }
+        
+        /* 心跳指示灯 (调试用) */
+        .debug-dot { width: 10px; height: 10px; background: #333; border-radius: 50%; display: inline-block; margin-right: 5px; border: 1px solid #555; }
+        .debug-dot.lit { background: #f00; box-shadow: 0 0 8px #f00; }
 
-        /* 启动屏 */
-        #splash {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 100;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .btn {
-            background: #222; border: 1px solid #555; color: white;
-            padding: 14px 35px; border-radius: 50px; font-size: 16px; font-weight: bold;
-            margin: 10px; cursor: pointer;
-        }
-        .btn-go { background: #00e676; color: black; border: none; }
-        .btn-opt { background: transparent; border: 1px solid rgba(255,255,255,0.4); padding: 8px 16px; font-size: 12px; align-self: flex-end; backdrop-filter: blur(4px); }
+        .btm { padding: 20px; pointer-events: auto; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
+        .prog-bg { width: 100%; height: 8px; background: rgba(255,255,255,0.2); border-radius: 4px; overflow: hidden; }
+        .prog-fg { width: 0%; height: 100%; background: #00e676; transition: width 0.2s; }
+        .info-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+
+        /* 抽屉 */
+        #drawer { position: absolute; bottom: 0; left: 0; width: 100%; background: #111; padding: 20px; box-sizing: border-box; transform: translateY(110%); transition: transform 0.3s; z-index: 20; pointer-events: auto; border-top: 1px solid #333; border-radius: 15px 15px 0 0; }
+        #drawer.open { transform: translateY(0); }
+        
+        .row { margin-bottom: 20px; }
+        .row-head { display: flex; justify-content: space-between; color: #aaa; font-size: 14px; margin-bottom: 8px; }
+        .val { color: #00e676; }
+        input[type=range] { width: 100%; height: 5px; background: #333; -webkit-appearance: none; border-radius: 3px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: white; border-radius: 50%; }
+
+        /* 启动页 */
+        #start { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .btn { padding: 15px 40px; border-radius: 50px; font-size: 18px; font-weight: bold; border: none; margin: 10px; cursor: pointer; }
+        .btn-green { background: #00e676; color: black; }
+        .btn-blue { background: #2196F3; color: white; }
+        .btn-sm { padding: 8px 16px; font-size: 12px; background: #333; color: #ddd; border: 1px solid #555; }
+
     </style>
 </head>
 <body>
 
-    <!-- 启动屏 -->
-    <div id="splash">
-        <h1 style="color:#00e676; margin-bottom:10px;">🏃 漫步 V8</h1>
-        <p style="color:#888; font-size:12px; margin-bottom:40px;">解决卡死 · 极速唤醒 · 状态机</p>
-        
-        <button class="btn" onclick="document.getElementById('fileIn').click()">1. 选择视频</button>
-        <input type="file" id="fileIn" accept="video/*" style="display:none" onchange="onFileLoaded(this)">
-        <div id="fName" style="color:#00e676; font-size:12px; height:20px; margin-bottom:20px;"></div>
-        
-        <button id="btnStart" class="btn btn-go" onclick="appStart()" disabled style="opacity:0.3">2. 全屏开始</button>
+    <div id="start">
+        <h1 style="color:#00e676">漫步 V9</h1>
+        <p style="color:#666; font-size:12px; margin-bottom:30px">强制归零 · 瞬时响应 · 心跳监测</p>
+        <button class="btn btn-blue" onclick="document.getElementById('upl').click()">1. 选视频</button>
+        <input type="file" id="upl" accept="video/*" style="display:none" onchange="fileReady(this)">
+        <div id="fname" style="color:#00e676; font-size:12px; height:20px;"></div>
+        <button id="go" class="btn btn-green" onclick="run()" disabled style="opacity:0.3">2. 开始</button>
     </div>
 
-    <!-- 视频 -->
-    <div id="vid-box">
-        <video id="vid" playsinline loop muted webkit-playsinline></video>
-    </div>
+    <div id="vid-wrap"><video id="vid" playsinline loop muted webkit-playsinline></video></div>
 
-    <!-- HUD -->
-    <div id="hud" style="display:none;">
-        <div class="hud-top">
-            <div class="grp">
-                <div class="txt-lg" id="ui-spd">0.0</div>
-                <div class="txt-sm">时速 (km/h)</div>
-                <div class="txt-accent" id="ui-rate">0.0 x</div>
+    <div id="hud" style="display:none">
+        <div class="top">
+            <div>
+                <div class="big-txt" id="spd">0.0</div>
+                <div class="lbl">时速 km/h</div>
+                <div class="sub-txt" id="rate">0.0 x</div>
             </div>
-            <div class="grp grp-r">
-                <div class="txt-lg" id="ui-step">0</div>
-                <div class="txt-sm">步数</div>
-                <div class="txt-accent" id="ui-dist">0.00 km</div>
+            <div style="text-align:right">
+                <div class="big-txt" id="step">0</div>
+                <div class="lbl"><span class="debug-dot" id="dot"></span> 步数</div>
+                <div class="sub-txt" id="dist">0.00 km</div>
             </div>
         </div>
-
-        <div class="hud-btm">
-            <div class="time-info"><span id="t-cur">0:00</span> / <span id="t-all">0:00</span></div>
-            <div class="bar-bg">
-                <div class="bar-fg" id="p-bar"></div>
+        <div class="btm">
+            <div class="info-row"><span id="tc">0:00</span><span id="tt">0:00</span></div>
+            <div class="prog-bg"><div class="prog-fg" id="bar"></div></div>
+            <div style="text-align:right; margin-top:10px">
+                <button class="btn-sm" onclick="toggle()">⚙️ 设置</button>
             </div>
-            <button class="btn-opt" onclick="toggleDrawer()">⚙️ 设置</button>
         </div>
     </div>
 
-    <!-- 设置 -->
     <div id="drawer">
-        <div style="display:flex; justify-content:space-between; margin-bottom:25px;">
-            <h3>参数调整</h3>
-            <button onclick="toggleDrawer()" style="background:none; border:none; color:#666; font-size:24px;">×</button>
-        </div>
-
-        <div class="set-row">
-            <div class="set-head"><span>原视频速度</span><span class="set-val" id="v-base">5 km/h</span></div>
-            <input type="range" min="2" max="20" value="5" oninput="setCfg('base',this.value)">
-        </div>
-
-        <div class="set-row">
-            <div class="set-head"><span>我的步长</span><span class="set-val" id="v-stride">0.70 m</span></div>
-            <input type="range" min="0.4" max="1.2" step="0.05" value="0.7" oninput="setCfg('stride',this.value)">
-        </div>
-
-        <div class="set-row">
-            <div class="set-head"><span>灵敏度 (1.0=极灵敏)</span><span class="set-val" id="v-sens">1.3</span></div>
-            <input type="range" min="0.8" max="4.0" step="0.1" value="1.3" oninput="setCfg('sens',this.value)">
-        </div>
-
-        <div style="text-align:center; padding-top:10px; border-top:1px solid #333;">
-            <button class="btn" style="font-size:12px; padding:10px 20px;" onclick="forceStep()">🧪 模拟一步 (唤醒测试)</button>
+        <div style="display:flex;justify-content:space-between;margin-bottom:20px"><h3>设置</h3><span onclick="toggle()" style="font-size:20px">×</span></div>
+        <div class="row"><div class="row-head"><span>原视频速度</span><span class="val" id="vb">5</span></div><input type="range" min="2" max="15" value="5" oninput="sc('base',this.value)"></div>
+        <div class="row"><div class="row-head"><span>步长</span><span class="val" id="vs">0.7</span></div><input type="range" min="0.4" max="1.2" step="0.05" value="0.7" oninput="sc('stride',this.value)"></div>
+        <div class="row"><div class="row-head"><span>灵敏度 (越小越灵敏)</span><span class="val" id="vse">1.3</span></div><input type="range" min="0.5" max="4.0" step="0.1" value="1.3" oninput="sc('sens',this.value)"></div>
+        <div style="text-align:center;border-top:1px solid #333;padding-top:10px">
+            <button class="btn-sm" onclick="force()">模拟一步</button>
         </div>
     </div>
 
     <script>
-        // --- 核心状态机 ---
-        const cfg = {
-            base: 5,       // 原视频速度
-            stride: 0.7,   // 步长
-            sens: 1.3,     // 默认灵敏度 (调低了，更易触发)
-            vrMax: 25
-        };
-
-        const state = {
-            active: false,
-            steps: 0,
-            
-            // 速度引擎 V8
-            isIdle: true,     // 关键标志：是否处于“停车”状态
-            lastT: 0,         // 上一步时间
-            hist: [],         // 历史步频
-            
-            currRate: 0,
-            targetRate: 0,
-            
-            isLandscape: false,
-            baseAlpha: null
-        };
-
+        const C = { base: 5, stride: 0.7, sens: 1.3, vr: 25 };
+        const S = { run: false, steps: 0, lastT: 0, curr: 0, target: 0, land: false, alpha0: null };
         const vid = document.getElementById('vid');
-        let audioCtx;
+        const dot = document.getElementById('dot');
+        let ac;
 
-        // --- 1. 启动 ---
-        function onFileLoaded(el) {
+        function fileReady(el) {
             const f = el.files[0];
             if(!f) return;
             vid.src = URL.createObjectURL(f);
-            document.getElementById('fName').innerText = f.name;
-            document.getElementById('btnStart').disabled = false;
-            document.getElementById('btnStart').style.opacity = 1;
-            
+            document.getElementById('fname').innerText = f.name;
+            document.getElementById('go').disabled = false;
+            document.getElementById('go').style.opacity = 1;
             vid.onloadedmetadata = () => {
-                state.isLandscape = vid.videoWidth > vid.videoHeight;
-                if(state.isLandscape) {
-                    vid.style.width = 'auto'; vid.style.height = '100vh';
-                } else {
-                    vid.style.width = '100%'; vid.style.height = '100%';
-                }
+                S.land = vid.videoWidth > vid.videoHeight;
+                if(S.land) { vid.style.width='auto'; vid.style.height='100vh'; }
+                else { vid.style.width='100%'; vid.style.height='100%'; }
             };
         }
 
-        function appStart() {
+        function run() {
             if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
-            document.getElementById('splash').style.display = 'none';
+            document.getElementById('start').style.display = 'none';
             document.getElementById('hud').style.display = 'flex';
+            ac = new (window.AudioContext||window.webkitAudioContext)();
             
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(window.DeviceMotionEvent && typeof DeviceMotionEvent.requestPermission==='function'){
+                DeviceMotionEvent.requestPermission().then(r=>{if(r==='granted')init();});
+            } else init();
 
-            if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(r => { if(r==='granted') initSensors(); });
-            } else {
-                initSensors();
-            }
-
-            vid.play().then(() => vid.pause()).catch(()=>{});
-            state.active = true;
-            requestAnimationFrame(engineLoop);
+            vid.play().then(()=>vid.pause());
+            S.run = true;
+            requestAnimationFrame(loop);
         }
 
-        function initSensors() {
-            window.addEventListener('devicemotion', onMotion);
-            window.addEventListener('deviceorientation', onOrient);
+        function init() {
+            window.addEventListener('devicemotion', mot);
+            window.addEventListener('deviceorientation', ori);
         }
 
-        // --- 2. 速度引擎 V8 (解决卡死的核心) ---
-        function onMotion(e) {
-            const acc = e.accelerationIncludingGravity || e.acceleration;
-            if(!acc) return;
-            const val = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-            
-            if (Math.abs(val - 9.8) > cfg.sens) {
-                stepTrigger();
-            }
+        // --- 核心逻辑 V9 ---
+        function mot(e) {
+            const a = e.accelerationIncludingGravity || e.acceleration;
+            if(!a) return;
+            const v = Math.sqrt(a.x**2 + a.y**2 + a.z**2);
+            // 简单的阈值判定
+            if(Math.abs(v - 9.8) > C.sens) step();
         }
 
-        function stepTrigger() {
+        function step() {
             const now = Date.now();
+            const diff = now - S.lastT;
+
+            // 防抖
+            if(diff < 250) return;
+
+            // 视觉心跳反馈 (如果不闪，说明传感器挂了)
+            dot.classList.add('lit');
+            setTimeout(()=>dot.classList.remove('lit'), 100);
             
-            // 如果系统处于 IDLE 状态 (已停车)，这是唤醒的第一步
-            if (state.isIdle) {
-                // === 弹射起步 ===
-                state.isIdle = false; // 退出空闲
-                state.hist = [];      // 清空所有历史旧数据
-                state.lastT = now;    // 重置时间戳
-                state.steps++;
+            fb(); // 震动声音
+            S.steps++;
+
+            // --- 速度计算 (无缓冲，无平均) ---
+            
+            // 1. 判定冷启动 (停车超过1.5秒)
+            if (diff > 1500) {
+                // 强制重置起步速度 (4km/h)
+                S.target = 4.0 / C.base;
+                // 关键：强制把当前速度也拉上来，防止Lerp拖泥带水
+                S.curr = S.target;
+            } else {
+                // 2. 正常行走：瞬时计算
+                const spm = 60000 / diff; 
+                const kmh = (spm * C.stride * 60) / 1000;
                 
-                feedback();
-                
-                // 强制给予一个“慢跑”的初速度 (约 4km/h)
-                // 这样视频瞬间就会动，绝不会卡在 0.1
-                const startUpSpeed = 4.0; 
-                state.targetRate = startUpSpeed / cfg.base;
-                
-                // 直接赋值，跳过平滑过渡，立即响应
-                state.currRate = state.targetRate;
-                
-                return; // 第一步处理完毕
+                // 3. 强制死亡阈值：如果算出来小于 1.0 km/h，直接归零
+                // 这样就杀死了 0.3 km/h 的幽灵
+                if (kmh < 1.0) {
+                    S.target = 0;
+                } else {
+                    S.target = kmh / C.base;
+                }
             }
-
-            // 如果不是 IDLE，说明是连续行走
-            const diff = now - state.lastT;
-            if (diff < 250) return; // 防抖
-
-            state.steps++;
-            state.lastT = now;
-            feedback();
-
-            // 计算瞬时步频 (SPM)
-            const spm = 60000 / diff;
-            state.hist.push(spm);
-            if(state.hist.length > 3) state.hist.shift();
-
-            // 取平均值
-            let sum = 0;
-            state.hist.forEach(v => sum += v);
-            const avgSpm = sum / state.hist.length;
-
-            // 物理公式
-            const kmh = (avgSpm * cfg.stride * 60) / 1000;
-            state.targetRate = kmh / cfg.base;
+            
+            S.lastT = now;
         }
 
-        function feedback() {
-            if(navigator.vibrate) navigator.vibrate(15);
-            if(audioCtx && audioCtx.state === 'running') {
-                const o = audioCtx.createOscillator();
-                const g = audioCtx.createGain();
-                o.connect(g); g.connect(audioCtx.destination);
-                o.frequency.setValueAtTime(100, audioCtx.currentTime);
-                o.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.1);
-                g.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+0.1);
-                o.start(); o.stop(audioCtx.currentTime+0.1);
-            }
-        }
+        function loop() {
+            if(!S.run) return;
 
-        // --- 3. 循环与自动停车 ---
-        function engineLoop() {
-            if(!state.active) return;
-
-            // 检查是否应该停车
-            // 如果 1.5秒 内没有新步数
-            if (!state.isIdle && Date.now() - state.lastT > 1500) {
-                // === 强制归零 ===
-                state.targetRate = 0;
-                state.isIdle = true; // 标记为空闲，为下一次“弹射起步”做准备
-                state.hist = [];     // 既然停了，历史数据就作废
+            // 自动停车 (超过1.5秒没信号 -> 归零)
+            if(Date.now() - S.lastT > 1500) {
+                S.target = 0;
             }
 
             // 平滑过渡
-            const err = state.targetRate - state.currRate;
-            if (Math.abs(err) > 0.01) {
-                state.currRate += err * 0.1; 
-            } else {
-                state.currRate = state.targetRate;
-            }
+            const d = S.target - S.curr;
+            if(Math.abs(d) > 0.01) S.curr += d * 0.15;
+            else S.curr = S.target;
 
-            // 播放逻辑
-            // 阈值设低一点，防止还没停稳就卡住
-            if (state.currRate > 0.02) {
-                vid.playbackRate = state.currRate;
+            // 播放控制
+            if(S.curr > 0.05) {
+                vid.playbackRate = S.curr;
                 if(vid.paused) vid.play().catch(()=>{});
             } else {
                 if(!vid.paused) vid.pause();
-                state.currRate = 0; 
+                S.curr = 0; // 彻底锁死为0
             }
 
-            renderUI();
-            requestAnimationFrame(engineLoop);
+            draw();
+            requestAnimationFrame(loop);
         }
 
-        function renderUI() {
-            const kmh = state.currRate * cfg.base;
-            document.getElementById('ui-spd').innerText = kmh.toFixed(1);
-            document.getElementById('ui-rate').innerText = state.currRate.toFixed(2) + " x";
-            
-            document.getElementById('ui-step').innerText = state.steps;
-            const dist = (state.steps * cfg.stride) / 1000;
-            document.getElementById('ui-dist').innerText = dist.toFixed(2) + " km";
-
+        function draw() {
+            const kmh = S.curr * C.base;
+            document.getElementById('spd').innerText = kmh.toFixed(1);
+            document.getElementById('rate').innerText = S.curr.toFixed(2) + " x";
+            document.getElementById('step').innerText = S.steps;
+            document.getElementById('dist').innerText = ((S.steps*C.stride)/1000).toFixed(2)+" km";
             if(vid.duration) {
-                const p = (vid.currentTime / vid.duration) * 100;
-                document.getElementById('p-bar').style.width = p + "%";
-                document.getElementById('t-cur').innerText = fmt(vid.currentTime);
-                document.getElementById('t-all').innerText = fmt(vid.duration);
+                document.getElementById('bar').style.width = (vid.currentTime/vid.duration*100)+"%";
+                document.getElementById('tc').innerText = fmt(vid.currentTime);
+                document.getElementById('tt').innerText = fmt(vid.duration);
             }
         }
 
-        // --- 4. VR ---
-        function onOrient(e) {
-            if(!state.isLandscape || !e.alpha) return;
-            if(state.baseAlpha === null) state.baseAlpha = e.alpha;
-
-            let d = e.alpha - state.baseAlpha;
-            if(d > 180) d -= 360;
-            if(d < -180) d += 360;
-            d = Math.max(-cfg.vrMax, Math.min(cfg.vrMax, d));
-            
-            // 左转头(d<0) -> 画面向右移(translate>0) -> 系数应为负
-            const pct = d * -0.8; 
-            vid.style.transform = `translateX(${pct}%)`;
+        function ori(e) {
+            if(!S.land || !e.alpha) return;
+            if(S.alpha0 === null) S.alpha0 = e.alpha;
+            let d = e.alpha - S.alpha0;
+            if(d > 180) d -= 360; if(d < -180) d += 360;
+            d = Math.max(-C.vr, Math.min(C.vr, d));
+            vid.style.transform = `translateX(${d * -1.0}%)`; // 反向移动
         }
 
-        // --- 辅助 ---
-        function toggleDrawer() { document.getElementById('drawer').classList.toggle('active'); }
-        function setCfg(k,v) {
-            v=parseFloat(v);
-            if(k==='base') { cfg.base=v; document.getElementById('v-base').innerText=v+" km/h"; }
-            if(k==='stride') { cfg.stride=v; document.getElementById('v-stride').innerText=v.toFixed(2)+" m"; }
-            if(k==='sens') { cfg.sens=v; document.getElementById('v-sens').innerText=v; }
+        function fb() {
+            if(navigator.vibrate) navigator.vibrate(15);
+            if(ac && ac.state==='running') {
+                const o=ac.createOscillator(), g=ac.createGain();
+                o.connect(g); g.connect(ac.destination);
+                o.frequency.setValueAtTime(100, ac.currentTime);
+                o.frequency.exponentialRampToValueAtTime(0.01, ac.currentTime+0.1);
+                g.gain.setValueAtTime(0.2, ac.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime+0.1);
+                o.start(); o.stop(ac.currentTime+0.1);
+            }
         }
-        function fmt(s) { const m=Math.floor(s/60), sc=Math.floor(s%60); return `${m}:${sc<10?'0'+sc:sc}`; }
-        function forceStep() { stepTrigger(); }
 
+        function toggle() { document.getElementById('drawer').classList.toggle('open'); }
+        function sc(k,v) { 
+            v=parseFloat(v); C[k]=v; 
+            if(k==='base')document.getElementById('vb').innerText=v;
+            if(k==='stride')document.getElementById('vs').innerText=v;
+            if(k==='sens')document.getElementById('vse').innerText=v;
+        }
+        function fmt(s) { return Math.floor(s/60)+":"+(Math.floor(s%60)<10?'0':'')+Math.floor(s%60); }
+        function force() { step(); }
     </script>
 </body>
 </html>
