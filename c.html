@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+    <title>沉浸式健身走步</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background: #000;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            position: fixed;
+        }
+
+        #videoContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #videoPlayer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            min-width: 100%;
+            min-height: 100%;
+        }
+
+        .ui-overlay {
+            position: fixed;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .ui-overlay * {
+            pointer-events: auto;
+        }
+
+        #setupScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .setup-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="number"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+            display: block;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .file-input-button:active {
+            transform: scale(0.98);
+        }
+
+        input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .start-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .start-button:active {
+            transform: scale(0.98);
+        }
+
+        .start-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        #statsBar {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            padding: 15px 25px;
+            border-radius: 20px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .stat-item {
+            text-align: center;
+            color: white;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            display: block;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            opacity: 0.9;
+            display: block;
+            margin-top: 2px;
+        }
+
+        #progressBar {
+            bottom: 80px;
+            left: 20px;
+            right: 20px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        #progressFill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+            box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+        }
+
+        #controls {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .control-btn:active {
+            transform: scale(0.9);
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .control-btn.active {
+            background: rgba(102, 126, 234, 0.8);
+            border-color: #667eea;
+        }
+
+        #statusIndicator {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px 40px;
+            border-radius: 15px;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        #statusIndicator.show {
+            opacity: 1;
+        }
+
+        .achievement {
+            position: fixed;
+            top: 100px;
+            right: -300px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: right 0.5s;
+            z-index: 200;
+            max-width: 250px;
+        }
+
+        .achievement.show {
+            right: 20px;
+        }
+
+        .achievement-title {
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .settings-icon {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 150;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        #settingsPanel {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            padding: 20px;
+            border-radius: 15px;
+            z-index: 200;
+            min-width: 200px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            color: white;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #555;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #667eea;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: left 0.3s;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            left: 27px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .pulse {
+            animation: pulse 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="setupScreen">
+        <div class="setup-card">
+            <h1>🚶‍♂️ 沉浸式健身走步</h1>
+            <p class="subtitle">选择视频,开启你的虚拟漫步之旅</p>
+            
+            <div class="input-group">
+                <label>选择风景视频</label>
+                <div class="file-input-wrapper">
+                    <label class="file-input-button" for="videoFile">
+                        <span id="fileName">📹 点击选择视频</span>
+                    </label>
+                    <input type="file" id="videoFile" accept="video/*">
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>原视频行进速度 (km/h)</label>
+                <input type="number" id="videoSpeed" value="5" min="1" max="30" step="0.5">
+            </div>
+
+            <div class="input-group">
+                <label>步距 (cm)</label>
+                <input type="number" id="stepLength" value="70" min="30" max="120" step="5">
+            </div>
+
+            <button class="start-button" id="startBtn" disabled>开始运动</button>
+        </div>
+    </div>
+
+    <div id="videoContainer" class="hidden">
+        <video id="videoPlayer" playsinline webkit-playsinline></video>
+    </div>
+
+    <div id="statsBar" class="ui-overlay hidden">
+        <div class="stat-item">
+            <span class="stat-value" id="stepCount">0</span>
+            <span class="stat-label">步数</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value" id="distance">0.00</span>
+            <span class="stat-label">公里</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value" id="calories">0</span>
+            <span class="stat-label">卡路里</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-value" id="duration">00:00</span>
+            <span class="stat-label">时长</span>
+        </div>
+    </div>
+
+    <div id="progressBar" class="ui-overlay hidden">
+        <div id="progressFill"></div>
+    </div>
+
+    <div id="controls" class="ui-overlay hidden">
+        <button class="control-btn" id="pauseBtn" title="暂停">⏸</button>
+        <button class="control-btn" id="resetBtn" title="重置">🔄</button>
+        <button class="control-btn" id="exitBtn" title="退出">✕</button>
+    </div>
+
+    <div class="settings-icon hidden" id="settingsIcon">⚙️</div>
+    <div id="settingsPanel" class="hidden">
+        <div class="setting-item">
+            <span>震动反馈</span>
+            <div class="toggle-switch active" data-setting="vibration">
+                <div class="toggle-slider"></div>
+            </div>
+        </div>
+        <div class="setting-item">
+            <span>走步音效</span>
+            <div class="toggle-switch active" data-setting="sound">
+                <div class="toggle-slider"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="statusIndicator" class="ui-overlay"></div>
+
+    <div id="achievementNotify" class="achievement">
+        <div class="achievement-title"></div>
+        <div class="achievement-desc"></div>
+    </div>
+
+    <script>
+        class FitnessWalkApp {
+            constructor() {
+                this.video = null;
+                this.videoSpeed = 5; // km/h
+                this.stepLength = 70; // cm
+                this.steps = 0;
+                this.isRunning = false;
+                this.isPaused = false;
+                this.startTime = null;
+                this.totalTime = 0;
+                this.lastStepTime = 0;
+                this.stepThreshold = 15;
+                this.lastAcceleration = 0;
+                this.videoDuration = 0;
+                this.videoProgress = 0;
+                
+                // 设置
+                this.settings = {
+                    vibration: true,
+                    sound: true
+                };
+
+                // 陀螺仪
+                this.gyroSupported = false;
+                this.videoOffset = 0;
+                this.maxOffset = 0;
+
+                // 音效
+                this.stepSound = null;
+                this.achievementMilestones = [100, 500, 1000, 2000, 5000];
+                
+                this.init();
+            }
+
+            init() {
+                this.setupElements();
+                this.setupEventListeners();
+                this.createStepSound();
+                this.checkSensorSupport();
+            }
+
+            setupElements() {
+                this.elements = {
+                    setupScreen: document.getElementById('setupScreen'),
+                    videoContainer: document.getElementById('videoContainer'),
+                    videoPlayer: document.getElementById('videoPlayer'),
+                    videoFile: document.getElementById('videoFile'),
+                    fileName: document.getElementById('fileName'),
+                    videoSpeedInput: document.getElementById('videoSpeed'),
+                    stepLengthInput: document.getElementById('stepLength'),
+                    startBtn: document.getElementById('startBtn'),
+                    statsBar: document.getElementById('statsBar'),
+                    stepCount: document.getElementById('stepCount'),
+                    distance: document.getElementById('distance'),
+                    calories: document.getElementById('calories'),
+                    duration: document.getElementById('duration'),
+                    progressBar: document.getElementById('progressBar'),
+                    progressFill: document.getElementById('progressFill'),
+                    controls: document.getElementById('controls'),
+                    pauseBtn: document.getElementById('pauseBtn'),
+                    resetBtn: document.getElementById('resetBtn'),
+                    exitBtn: document.getElementById('exitBtn'),
+                    statusIndicator: document.getElementById('statusIndicator'),
+                    settingsIcon: document.getElementById('settingsIcon'),
+                    settingsPanel: document.getElementById('settingsPanel'),
+                    achievementNotify: document.getElementById('achievementNotify')
+                };
+            }
+
+            setupEventListeners() {
+                this.elements.videoFile.addEventListener('change', (e) => this.handleVideoSelect(e));
+                this.elements.startBtn.addEventListener('click', () => this.startWorkout());
+                this.elements.pauseBtn.addEventListener('click', () => this.togglePause());
+                this.elements.resetBtn.addEventListener('click', () => this.reset());
+                this.elements.exitBtn.addEventListener('click', () => this.exit());
+                
+                this.elements.settingsIcon.addEventListener('click', () => {
+                    this.elements.settingsPanel.classList.toggle('hidden');
+                });
+
+                document.querySelectorAll('.toggle-switch').forEach(toggle => {
+                    toggle.addEventListener('click', (e) => {
+                        const setting = e.currentTarget.dataset.setting;
+                        this.toggleSetting(setting);
+                        e.currentTarget.classList.toggle('active');
+                    });
+                });
+
+                this.elements.videoPlayer.addEventListener('loadedmetadata', () => {
+                    this.videoDuration = this.elements.videoPlayer.duration;
+                    this.checkVideoOrientation();
+                });
+            }
+
+            handleVideoSelect(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    this.elements.fileName.textContent = file.name;
+                    this.video = URL.createObjectURL(file);
+                    this.elements.videoPlayer.src = this.video;
+                    this.elements.startBtn.disabled = false;
+                }
+            }
+
+            checkVideoOrientation() {
+                const video = this.elements.videoPlayer;
+                const isLandscape = video.videoWidth > video.videoHeight;
+                
+                if (isLandscape) {
+                    this.maxOffset = (video.videoWidth - window.innerWidth) / 2;
+                    this.gyroSupported = true;
+                } else {
+                    video.style.width = '100vw';
+                    video.style.height = '100vh';
+                    video.style.objectFit = 'cover';
+                }
+            }
+
+            async startWorkout() {
+                this.videoSpeed = parseFloat(this.elements.videoSpeedInput.value);
+                this.stepLength = parseFloat(this.elements.stepLengthInput.value);
+
+                this.elements.setupScreen.classList.add('hidden');
+                this.elements.videoContainer.classList.remove('hidden');
+                this.elements.statsBar.classList.remove('hidden');
+                this.elements.progressBar.classList.remove('hidden');
+                this.elements.controls.classList.remove('hidden');
+                this.elements.settingsIcon.classList.remove('hidden');
+
+                // 请求全屏
+                try {
+                    if (document.documentElement.requestFullscreen) {
+                        await document.documentElement.requestFullscreen();
+                    } else if (document.documentElement.webkitRequestFullscreen) {
+                        await document.documentElement.webkitRequestFullscreen();
+                    }
+                } catch (e) {
+                    console.log('全屏请求失败:', e);
+                }
+
+                // 请求传感器权限
+                await this.requestSensorPermissions();
+                
+                this.isRunning = true;
+                this.startTime = Date.now();
+                this.startMotionDetection();
+                this.startTimer();
+
+                this.showStatus('开始运动!');
+            }
+
+            async requestSensorPermissions() {
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                    try {
+                        const permission = await DeviceMotionEvent.requestPermission();
+                        if (permission === 'granted') {
+                            this.startAccelerometer();
+                        }
+                    } catch (e) {
+                        console.error('传感器权限请求失败:', e);
+                    }
+                } else {
+                    this.startAccelerometer();
+                }
+
+                if (this.gyroSupported && typeof DeviceOrientationEvent !== 'undefined') {
+                    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        try {
+                            const permission = await DeviceOrientationEvent.requestPermission();
+                            if (permission === 'granted') {
+                                this.startGyroscope();
+                            }
+                        } catch (e) {
+                            console.error('陀螺仪权限请求失败:', e);
+                        }
+                    } else {
+                        this.startGyroscope();
+                    }
+                }
+            }
+
+            startAccelerometer() {
+                window.addEventListener('devicemotion', (e) => {
+                    if (!this.isRunning || this.isPaused) return;
+                    
+                    const acc = e.accelerationIncludingGravity;
+                    const magnitude = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
+                    const delta = Math.abs(magnitude - this.lastAcceleration);
+                    
+                    if (delta > this.stepThreshold) {
+                        const now = Date.now();
+                        if (now - this.lastStepTime > 300) { // 防止重复计数
+                            this.onStep();
+                            this.lastStepTime = now;
+                        }
+                    }
+                    
+                    this.lastAcceleration = magnitude;
+                });
+            }
+
+            startGyroscope() {
+                window.addEventListener('deviceorientation', (e) => {
+                    if (!this.gyroSupported || !this.isRunning) return;
+                    
+                    const gamma = e.gamma; // 左右倾斜 -90 到 90
+                    const normalizedGamma = Math.max(-45, Math.min(45, gamma)) / 45;
+                    this.videoOffset = normalizedGamma * this.maxOffset;
+                    
+                    this.elements.videoPlayer.style.transform = 
+                        `translate(calc(-50% + ${this.videoOffset}px), -50%)`;
+                });
+            }
+
+            onStep() {
+                this.steps++;
+                this.updateStats();
+                this.updateVideoSpeed();
+                this.provideFeedback();
+                this.checkAchievements();
+            }
+
+            updateStats() {
+                const distance = (this.steps * this.stepLength / 100000).toFixed(2);
+                const calories = Math.floor(this.steps * 0.04);
+                
+                this.elements.stepCount.textContent = this.steps;
+                this.elements.distance.textContent = distance;
+                this.elements.calories.textContent = calories;
+
+                // 更新进度
+                const userDistance = this.steps * this.stepLength / 100000; // km
+                const videoDistance = this.videoSpeed * (this.videoDuration / 3600);
+                this.videoProgress = Math.min((userDistance / videoDistance) * 100, 100);
+                this.elements.progressFill.style.width = this.videoProgress + '%';
+            }
+
+            updateVideoSpeed() {
+                if (!this.elements.videoPlayer.paused) {
+                    // 计算当前步频
+                    const currentSpeed = this.calculateCurrentSpeed();
+                    const speedRatio = currentSpeed / this.videoSpeed;
+                    this.elements.videoPlayer.playbackRate = Math.max(0.25, Math.min(speedRatio, 3));
+                } else {
+                    this.elements.videoPlayer.play();
+                }
+            }
+
+            calculateCurrentSpeed() {
+                const now = Date.now();
+                const timeDiff = (now - this.startTime) / 3600000; // hours
+                const distance = (this.steps * this.stepLength / 100000); // km
+                return timeDiff > 0 ? distance / timeDiff : 0;
+            }
+
+            provideFeedback() {
+                // 震动反馈
+                if (this.settings.vibration && navigator.vibrate) {
+                    navigator.vibrate(20);
+                }
+
+                // 音效反馈
+                if (this.settings.sound && this.stepSound) {
+                    this.stepSound.currentTime = 0;
+                    this.stepSound.play().catch(() => {});
+                }
+
+                // 视觉反馈
+                this.elements.stepCount.parentElement.classList.add('pulse');
+                setTimeout(() => {
+                    this.elements.stepCount.parentElement.classList.remove('pulse');
+                }, 300);
+            }
+
+            createStepSound() {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.1, audioContext.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                for (let i = 0; i < buffer.length; i++) {
+                    data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (buffer.length * 0.3)) * 0.3;
+                }
+
+                const source = audioContext.createBufferSource();
+                source.buffer = buffer;
+                
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 0.1;
+                
+                source.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                // 创建简单的音频元素作为替代
+                this.stepSound = new Audio();
+                this.stepSound.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+            }
+
+            startTimer() {
+                setInterval(() => {
+                    if (!this.isRunning || this.isPaused) return;
+                    
+                    const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
+                    const minutes = Math.floor(elapsed / 60);
+                    const seconds = elapsed % 60;
+                    this.elements.duration.textContent = 
+                        `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                }, 1000);
+            }
+
+            togglePause() {
+                this.isPaused = !this.isPaused;
+                
+                if (this.isPaused) {
+                    this.elements.videoPlayer.pause();
+                    this.elements.pauseBtn.textContent = '▶';
+                    this.showStatus('已暂停');
+                } else {
+                    this.elements.videoPlayer.play();
+                    this.elements.pauseBtn.textContent = '⏸';
+                    this.showStatus('继续运动');
+                }
+            }
+
+            reset() {
+                if (confirm('确定要重置当前运动数据吗?')) {
+                    this.steps = 0;
+                    this.startTime = Date.now();
+                    this.videoProgress = 0;
+                    this.elements.videoPlayer.currentTime = 0;
+                    this.updateStats();
+                    this.showStatus('已重置');
+                }
+            }
+
+            exit() {
+                if (confirm('确定要退出吗?')) {
+                    this.isRunning = false;
+                    this.elements.setupScreen.classList.remove('hidden');
+                    this.elements.videoContainer.classList.add('hidden');
+                    this.elements.statsBar.classList.add('hidden');
+                    this.elements.progressBar.classList.add('hidden');
+                    this.elements.controls.classList.add('hidden');
+                    this.elements.settingsIcon.classList.add('hidden');
+                    this.elements.settingsPanel.classList.add('hidden');
+                    this.elements.videoPlayer.pause();
+                    
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    }
+                }
+            }
+
+            toggleSetting(setting) {
+                this.settings[setting] = !this.settings[setting];
+            }
+
+            showStatus(message) {
+                this.elements.statusIndicator.textContent = message;
+                this.elements.statusIndicator.classList.add('show');
+                setTimeout(() => {
+                    this.elements.statusIndicator.classList.remove('show');
+                }, 2000);
+            }
+
+            checkAchievements() {
+                const milestone = this.achievementMilestones.find(m => m === this.steps);
+                if (milestone) {
+                    this.showAchievement('🎉 里程碑达成!', `完
