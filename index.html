@@ -3,89 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>漫步 V13 - 强力归零版</title>
+    <title>Walk World V14</title>
     <style>
-        /* --- 全局 --- */
-        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; font-family:-apple-system, BlinkMacSystemFont, Roboto, sans-serif; user-select:none; -webkit-tap-highlight-color:transparent; color:white; }
+        /* --- Global / 全局 --- */
+        body, html { margin:0; padding:0; width:100%; height:100%; background:#000; overflow:hidden; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; user-select:none; -webkit-tap-highlight-color:transparent; color:white; }
         
-        /* 视频：平滑位移 */
+        /* Video Layer / 视频层 */
         #v-wrap { position:absolute; top:0; left:0; width:100%; height:100%; z-index:1; display:flex; align-items:center; justify-content:center; }
-        video { width:100%; height:100%; object-fit:cover; transition:transform 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+        /* 关键：增加 will-change 优化性能 */
+        video { width:100%; height:100%; object-fit:cover; will-change:transform; }
 
-        /* UI层 */
-        #ui { position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between; text-shadow:0 2px 8px rgba(0,0,0,1); }
+        /* UI Layer / 界面层 */
+        #ui { position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; pointer-events:none; display:flex; flex-direction:column; justify-content:space-between; text-shadow:0 1px 4px rgba(0,0,0,0.9); }
         
-        /* 顶部 */
-        .top { padding:25px; display:flex; justify-content:space-between; align-items:flex-start; }
+        /* Top Bar / 顶部 */
+        .top { padding:20px; display:flex; justify-content:space-between; align-items:flex-start; }
         .grp { display:flex; flex-direction:column; }
         .grp-r { text-align:right; align-items:flex-end; }
         
-        .txt-main { font-size:60px; font-weight:900; line-height:0.9; font-variant-numeric:tabular-nums; }
+        .txt-main { font-size:52px; font-weight:800; line-height:0.9; font-variant-numeric:tabular-nums; }
         .txt-lbl { font-size:12px; font-weight:700; color:#ccc; margin-top:5px; text-transform:uppercase; letter-spacing:1px; }
-        .txt-sub { font-size:18px; font-weight:700; color:#00e676; margin-top:5px; }
+        .txt-sub { font-size:16px; font-weight:700; color:#00e676; margin-top:5px; }
 
-        /* 呼吸点 */
-        .dot { display:inline-block; width:12px; height:12px; background:#444; border-radius:50%; margin-right:8px; border:1px solid #888; transition:0.1s; }
-        .dot.lit { background:#00e676; box-shadow:0 0 15px #00e676; border-color:#fff; transform:scale(1.4); }
+        /* Dot / 呼吸点 */
+        .dot { display:inline-block; width:10px; height:10px; background:#444; border-radius:50%; margin-right:6px; border:1px solid #888; transition:0.1s; }
+        .dot.lit { background:#00e676; box-shadow:0 0 12px #00e676; border-color:#fff; transform:scale(1.4); }
 
-        /* 底部 */
-        .btm { padding:25px; pointer-events:auto; background:linear-gradient(to top, rgba(0,0,0,0.95), transparent); }
-        .bar-bg { width:100%; height:8px; background:rgba(255,255,255,0.2); border-radius:4px; overflow:hidden; backdrop-filter:blur(5px); }
+        /* Bottom Bar / 底部 */
+        .btm { padding:20px; pointer-events:auto; background:linear-gradient(to top, rgba(0,0,0,0.9), transparent); }
+        .bar-bg { width:100%; height:6px; background:rgba(255,255,255,0.3); border-radius:3px; overflow:hidden; backdrop-filter:blur(5px); }
         .bar-fg { width:0%; height:100%; background:#00e676; box-shadow:0 0 15px rgba(0,230,118,0.6); transition:width 0.2s linear; }
-        .tm { display:flex; justify-content:space-between; font-size:12px; margin-bottom:10px; font-weight:600; opacity:0.8; }
+        .tm { display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px; font-weight:600; opacity:0.9; }
         
-        .btn-row { display:flex; justify-content:space-between; margin-top:20px; gap:10px; }
+        .btn-row { display:flex; justify-content:space-between; margin-top:15px; gap:10px; }
 
-        /* 设置抽屉 */
-        #set { position:absolute; bottom:0; left:0; width:100%; background:rgba(15,15,15,0.98); border-top:1px solid #333; border-radius:24px 24px 0 0; padding:30px; box-sizing:border-box; transform:translateY(110%); transition:transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); z-index:20; pointer-events:auto; }
+        /* Settings Drawer / 设置抽屉 */
+        #set { position:absolute; bottom:0; left:0; width:100%; background:rgba(18,18,18,0.98); border-top:1px solid #333; border-radius:24px 24px 0 0; padding:25px; box-sizing:border-box; transform:translateY(110%); transition:transform 0.3s cubic-bezier(0.1, 0.7, 0.1, 1); z-index:20; pointer-events:auto; }
         #set.show { transform:translateY(0); }
         
-        .row { margin-bottom:25px; }
-        .rh { display:flex; justify-content:space-between; margin-bottom:12px; font-size:14px; color:#aaa; font-weight:600; }
+        .row { margin-bottom:20px; }
+        .rh { display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px; color:#aaa; font-weight:600; }
         .rv { color:#00e676; }
         input[type=range] { width:100%; height:6px; background:#333; border-radius:3px; -webkit-appearance:none; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; background:#fff; border-radius:50%; box-shadow:0 4px 8px rgba(0,0,0,0.6); }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:22px; height:22px; background:#fff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.5); }
         
-        .tgl-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; font-size:14px; color:#ddd; font-weight:600; }
-        .tgl { width:52px; height:30px; background:#444; border-radius:15px; position:relative; transition:0.3s; cursor:pointer; }
-        .tgl::after { content:''; position:absolute; top:2px; left:2px; width:26px; height:26px; background:#fff; border-radius:50%; transition:0.3s; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+        .tgl-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:15px; font-size:14px; color:#ddd; font-weight:600; }
+        .tgl { width:46px; height:26px; background:#444; border-radius:13px; position:relative; transition:0.3s; cursor:pointer; }
+        .tgl::after { content:''; position:absolute; top:2px; left:2px; width:22px; height:22px; background:#fff; border-radius:50%; transition:0.3s; }
         .tgl.on { background:#00e676; }
-        .tgl.on::after { left:24px; }
+        .tgl.on::after { left:22px; }
 
-        /* 启动页 */
-        #boot { position:absolute; top:0; left:0; width:100%; height:100%; background:#050505; z-index:99; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-        .btn { padding:18px 45px; border-radius:50px; font-size:18px; font-weight:700; border:none; margin:15px; cursor:pointer; transition:transform 0.1s; }
+        /* Lang Button */
+        .lang-btn { position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.1); border:1px solid #555; color:#fff; padding:5px 10px; font-size:12px; border-radius:15px; cursor:pointer; z-index:101; }
+
+        /* Boot Screen / 启动页 */
+        #boot { position:absolute; top:0; left:0; width:100%; height:100%; background:#050505; z-index:99; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+        .btn { padding:15px 40px; border-radius:50px; font-size:16px; font-weight:700; border:none; margin:10px; cursor:pointer; transition:transform 0.1s; }
         .btn:active { transform:scale(0.95); }
-        .btn-g { background:#00e676; color:#000; box-shadow:0 0 20px rgba(0,230,118,0.3); }
+        .btn-g { background:#00e676; color:#000; box-shadow:0 0 15px rgba(0,230,118,0.2); }
         .btn-b { background:#2979FF; color:#fff; }
-        .btn-s { flex:1; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:12px; font-size:14px; border-radius:16px; backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; }
-        .btn-s:active { background:rgba(255,255,255,0.2); }
+        .btn-s { flex:1; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.2); color:#fff; padding:10px; font-size:13px; border-radius:16px; backdrop-filter:blur(10px); }
+        
+        .warn { font-size:12px; color:#666; margin-top:20px; max-width:80%; line-height:1.5; }
 
     </style>
 </head>
 <body>
 
+    <!-- Language Switcher -->
+    <button class="lang-btn" onclick="toggleLang()">中 / En</button>
+
+    <!-- Boot Screen -->
     <div id="boot">
-        <h1 style="color:#00e676; margin-bottom:10px;">🏃 漫步 V13</h1>
-        <p style="color:#666; font-size:12px; margin-bottom:50px; letter-spacing:1px;">强力归零 · 瞬时响应</p>
-        <button class="btn btn-b" onclick="document.getElementById('fi').click()">1. 选择视频</button>
+        <h1 style="color:#00e676; margin-bottom:5px;" data-t="title">Walk World V14</h1>
+        <p style="color:#888; font-size:12px; margin-bottom:40px; letter-spacing:1px;" data-t="subtitle">Anti-Shake VR • Bilingual • Stable</p>
+        
+        <button class="btn btn-b" onclick="document.getElementById('fi').click()" data-t="btnSel">1. Select Video</button>
         <input type="file" id="fi" accept="video/*" style="display:none" onchange="onF(this)">
-        <div id="fn" style="color:#00e676; font-size:12px; height:20px;"></div>
-        <button id="go" class="btn btn-g" onclick="start()" disabled style="opacity:0.3">2. 全屏出发</button>
+        <div id="fn" style="color:#00e676; font-size:12px; height:20px; margin-bottom:5px;"></div>
+        
+        <button id="go" class="btn btn-g" onclick="start()" disabled style="opacity:0.3" data-t="btnGo">2. Start Fullscreen</button>
+        
+        <div class="warn" data-t="tip">Note: Please run in HTTPS or Localhost for sensor access.</div>
     </div>
 
+    <!-- Video -->
     <div id="v-wrap"><video id="vid" playsinline loop muted webkit-playsinline></video></div>
 
+    <!-- HUD -->
     <div id="ui" style="display:none">
         <div class="top">
             <div class="grp">
                 <div class="txt-main" id="d-spd">0.0</div>
-                <div class="txt-lbl">时速 km/h</div>
+                <div class="txt-lbl" data-t="lblSpeed">Speed km/h</div>
                 <div class="txt-sub" id="d-rat">0.00 x</div>
             </div>
             <div class="grp grp-r">
                 <div class="txt-main" id="d-stp">0</div>
-                <div class="txt-lbl"><span class="dot" id="dot"></span>步数</div>
+                <div class="txt-lbl"><span class="dot" id="dot"></span><span data-t="lblSteps">Steps</span></div>
                 <div class="txt-sub" id="d-dst">0.00 km</div>
             </div>
         </div>
@@ -94,48 +109,86 @@
             <div class="bar-bg"><div class="bar-fg" id="pb"></div></div>
             
             <div class="btn-row">
-                <button class="btn-s" onclick="recenter()">🎯 回正视角</button>
-                <button class="btn-s" onclick="tSet()">⚙️ 设置</button>
+                <button class="btn-s" onclick="recenter()" data-t="btnCenter">🎯 Recenter</button>
+                <button class="btn-s" onclick="tSet()" data-t="btnSet">⚙️ Settings</button>
             </div>
         </div>
     </div>
 
+    <!-- Settings -->
     <div id="set">
-        <div style="display:flex;justify-content:space-between;margin-bottom:30px;align-items:center;">
-            <h3 style="margin:0">设置</h3>
+        <div style="display:flex;justify-content:space-between;margin-bottom:25px;align-items:center;">
+            <h3 style="margin:0" data-t="headSet">Settings</h3>
             <span onclick="tSet()" style="font-size:28px;color:#666;cursor:pointer;">×</span>
         </div>
 
-        <div class="row"><div class="rh"><span>原视频速度</span><span class="rv" id="vb">5 km/h</span></div><input type="range" min="2" max="15" value="5" oninput="uC('base',this.value)"></div>
-        <div class="row"><div class="rh"><span>我的步长</span><span class="rv" id="vs">0.70 m</span></div><input type="range" min="0.4" max="1.2" step="0.05" value="0.7" oninput="uC('stride',this.value)"></div>
-        <div class="row"><div class="rh"><span>灵敏度 (1=最灵敏)</span><span class="rv" id="vse">1.3</span></div><input type="range" min="0.8" max="3.0" step="0.1" value="1.3" oninput="uC('sens',this.value)"></div>
+        <div class="row"><div class="rh"><span data-t="cfgBase">Video Base Speed</span><span class="rv" id="vb">5 km/h</span></div><input type="range" min="2" max="15" value="5" oninput="uC('base',this.value)"></div>
+        <div class="row"><div class="rh"><span data-t="cfgStride">Stride Length</span><span class="rv" id="vs">0.70 m</span></div><input type="range" min="0.4" max="1.2" step="0.05" value="0.7" oninput="uC('stride',this.value)"></div>
+        <div class="row"><div class="rh"><span data-t="cfgSens">Sensitivity (Low=High)</span><span class="rv" id="vse">1.3</span></div><input type="range" min="0.8" max="3.0" step="0.1" value="1.3" oninput="uC('sens',this.value)"></div>
         
-        <div style="height:1px; background:#333; margin:25px 0;"></div>
+        <div style="height:1px; background:#333; margin:20px 0;"></div>
         
         <div class="tgl-row" onclick="uT('vrInv')">
-            <span>🔄 VR 方向反转</span>
+            <span data-t="cfgInv">🔄 Invert VR Direction</span>
             <div class="tgl" id="t-vr"></div>
         </div>
 
-        <div style="text-align:center; margin-top:30px;">
-             <button class="btn-s" style="width:100%; border-color:#00e676; color:#00e676;" onclick="sim()">⚡ 模拟触发 (测试)</button>
+        <div style="text-align:center; margin-top:20px;">
+             <button class="btn-s" style="width:100%; border-color:#00e676; color:#00e676;" onclick="sim()" data-t="btnSim">⚡ Sim Step (Test)</button>
         </div>
     </div>
 
     <script>
-        // --- 核心配置 ---
+        // --- Translations ---
+        const TR = {
+            zh: {
+                title: "漫步世界 V14", subtitle: "智能防抖 VR · 中英双语 · 完美版",
+                btnSel: "1. 选择视频", btnGo: "2. 全屏出发", tip: "提示：需要 HTTPS 环境或本地 localhost 才能调用传感器。",
+                lblSpeed: "时速 km/h", lblSteps: "步数",
+                btnCenter: "🎯 回正视角", btnSet: "⚙️ 设置",
+                headSet: "运动设置", cfgBase: "原视频速度", cfgStride: "我的步长", cfgSens: "灵敏度 (越小越灵敏)",
+                cfgInv: "🔄 VR 方向反转", btnSim: "⚡ 模拟走一步 (测试)"
+            },
+            en: {
+                title: "Walk World V14", subtitle: "Anti-Shake VR • Bilingual • Stable",
+                btnSel: "1. Select Video", btnGo: "2. Start Fullscreen", tip: "Note: HTTPS or Localhost required for sensor access.",
+                lblSpeed: "Speed km/h", lblSteps: "Steps",
+                btnCenter: "🎯 Recenter", btnSet: "⚙️ Settings",
+                headSet: "Settings", cfgBase: "Video Base Speed", cfgStride: "Stride Length", cfgSens: "Sensitivity (Lower=Higher)",
+                cfgInv: "🔄 Invert VR Direction", btnSim: "⚡ Sim Step (Test)"
+            }
+        };
+        let CUR_LANG = 'zh'; // Default Chinese
+
+        // --- Config & State ---
         const C = { base:5, stride:0.7, sens:1.3, vr:25, vrInv:false };
         const S = { 
-            run:false, steps:0, 
-            lastT:0,      
-            hist:[],      
-            curr:0, target:0, 
-            land:false, alpha0:null 
+            run:false, steps:0, lastT:0, hist:[], curr:0, target:0, 
+            land:false, alpha0:null,
+            // VR Stabilization
+            vrTarget: 0, // Where we want to go
+            vrCurr: 0    // Where we are (smoothed)
         };
         
         const vid = document.getElementById('vid');
         const dot = document.getElementById('dot');
         let ac; 
+
+        // Apply Language immediately
+        applyLang();
+
+        function toggleLang() {
+            CUR_LANG = CUR_LANG === 'zh' ? 'en' : 'zh';
+            applyLang();
+        }
+
+        function applyLang() {
+            const t = TR[CUR_LANG];
+            document.querySelectorAll('[data-t]').forEach(el => {
+                const k = el.getAttribute('data-t');
+                if(t[k]) el.innerText = t[k];
+            });
+        }
 
         function onF(el) {
             const f=el.files[0]; if(!f)return;
@@ -168,7 +221,6 @@
             window.addEventListener('deviceorientation', ori);
         }
 
-        // --- 运动引擎 V13 ---
         function mot(e) {
             const a = e.accelerationIncludingGravity || e.acceleration;
             if(!a) return;
@@ -179,66 +231,65 @@
         function trig() {
             const now = Date.now();
             const diff = now - S.lastT;
-
             if(diff < 250) return;
 
-            // 反馈
             dot.classList.add('lit');
             setTimeout(()=>dot.classList.remove('lit'), 100);
             fb(); 
 
             S.steps++;
             
-            // 判定：如果距离上次触发超过 1.2秒，视为“新起步”
-            // (之前是2.0秒，现在改短，防止拖沓)
             if (diff > 1200) {
-                // 冷启动逻辑
+                // Cold Start
                 const startSPM = 80; 
                 S.hist = [startSPM];
                 const kmh = (startSPM * C.stride * 60) / 1000;
                 S.target = kmh / C.base;
-                
-                // 强制提升当前速度，避免从0慢慢爬
                 if(S.curr < 0.1) S.curr = S.target * 0.6; 
-                
             } else {
-                // 连续行走
+                // Continuous
                 const spm = 60000 / diff;
                 S.hist.push(spm);
                 if(S.hist.length > 3) S.hist.shift();
-
                 let sum = 0; S.hist.forEach(v=>sum+=v);
                 const avgSPM = sum / S.hist.length;
-                
                 const kmh = (avgSPM * C.stride * 60) / 1000;
                 S.target = kmh / C.base;
             }
-
             S.lastT = now;
         }
 
         function loop() {
             if(!S.run) return;
 
-            // 自动停车检测 (1.2秒超时)
-            if(Date.now() - S.lastT > 1200) {
-                S.target = 0;
-            }
+            // Auto Stop
+            if(Date.now() - S.lastT > 1200) S.target = 0;
 
-            // 平滑计算
+            // Smooth Speed
             const d = S.target - S.curr;
             if(Math.abs(d) > 0.001) S.curr += d * 0.1;
             else S.curr = S.target;
 
-            // === 核心修复 V13：强力归零 ===
-            // 如果倍率掉到 0.08 以下，直接强制设为 0。
-            // 绝不让它停留在 0.07 这种尴尬数值。
+            // Prevent Stall < 0.08
             if(S.curr < 0.08) {
-                S.curr = 0; // 强制写0
+                S.curr = 0;
                 if(!vid.paused) vid.pause();
             } else {
                 vid.playbackRate = S.curr;
                 if(vid.paused) vid.play().catch(()=>{});
+            }
+
+            // === VR Smoothing (Low-Pass Filter) ===
+            // This is the key to preventing motion sickness
+            if (S.land) {
+                const vrDiff = S.vrTarget - S.vrCurr;
+                // 0.1 is the smoothing factor. Lower = smoother but slower.
+                if (Math.abs(vrDiff) > 0.05) {
+                    S.vrCurr += vrDiff * 0.1; 
+                } else {
+                    S.vrCurr = S.vrTarget;
+                }
+                vid.style.transform = `translateX(${S.vrCurr}%)`;
             }
 
             draw();
@@ -247,13 +298,10 @@
 
         function draw() {
             const kmh = S.curr * C.base;
-            
             document.getElementById('d-spd').innerText = kmh.toFixed(1);
-            // 这里 S.curr 已经被强制为0了，所以 UI 肯定显示 0.00 x
             document.getElementById('d-rat').innerText = S.curr.toFixed(2)+" x";
             document.getElementById('d-stp').innerText = S.steps;
             document.getElementById('d-dst').innerText = ((S.steps*C.stride)/1000).toFixed(2)+" km";
-            
             if(vid.duration) {
                 document.getElementById('pb').style.width = (vid.currentTime/vid.duration*100)+"%";
                 document.getElementById('tc').innerText = fmt(vid.currentTime);
@@ -269,15 +317,17 @@
             if(d > 180) d -= 360; if(d < -180) d += 360;
             d = Math.max(-C.vr, Math.min(C.vr, d));
             
-            let move = d * -0.8; 
+            // Reduced sensitivity (0.4) for comfort
+            let move = d * 0.4; 
             if(C.vrInv) move = move * -1;
             
-            vid.style.transform = `translateX(${move}%)`;
+            // Instead of setting transform directly, we set the TARGET
+            S.vrTarget = move;
         }
         
         function recenter() {
             S.alpha0 = null;
-            vid.style.transform = `translateX(0%)`;
+            S.vrTarget = 0; // Reset target immediately
         }
 
         function fb() {
@@ -285,7 +335,7 @@
             if(ac && ac.state==='running') {
                 const o=ac.createOscillator(), g=ac.createGain();
                 o.connect(g); g.connect(ac.destination);
-                o.frequency.setValueAtTime(100, ac.currentTime);
+                o.frequency.setValueAtTime(120, ac.currentTime);
                 o.frequency.exponentialRampToValueAtTime(0.01, ac.currentTime+0.1);
                 g.gain.setValueAtTime(0.2, ac.currentTime);
                 g.gain.exponentialRampToValueAtTime(0.01, ac.currentTime+0.1);
