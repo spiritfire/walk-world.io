@@ -1,8 +1,8 @@
 # 🌍 Walk World | 漫步世界
 > **Run the world from your living room. / 足不出户，漫步世界。**
 > try by below link (on android or apple phone, i test on android chrome, i don't know if apple works well because i don't have iphone)
-https://spiritfire.github.io/walk-world
-[English](#english) | [中文](#chinese)
+> https://spiritfire.github.io/walk-world
+> [English](#english) | [中文](#chinese)
 
 ---
 
