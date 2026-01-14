@@ -3,473 +3,359 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>健身漫步 - 沉浸版</title>
+    <title>健身漫步 V3 - 强动力版</title>
     <style>
-        /* --- 基础样式 --- */
+        /* --- 全局样式 --- */
         body, html {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
-            background-color: #000;
-            overflow: hidden;
-            font-family: sans-serif;
-            color: white;
-            -webkit-user-select: none; /* 禁止选中文本 */
-            user-select: none;
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #000; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: white; user-select: none; -webkit-tap-highlight-color: transparent;
         }
 
-        /* 视频容器：绝对定位，铺满 */
+        /* 视频层 */
         #video-wrapper {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; display: flex; align-items: center; justify-content: center; overflow: hidden;
         }
-
         video {
-            /* 默认状态 */
-            width: 100%; height: 100%;
-            object-fit: cover;
-            transition: transform 0.1s ease-out; /* VR平移时的过渡 */
+            width: 100%; height: 100%; object-fit: cover;
+            transform-origin: center center;
+            will-change: transform; /* 性能优化 */
         }
 
-        /* --- 启动遮罩层 --- */
-        #overlay {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: #111;
-            z-index: 999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+        /* UI层 */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        /* 顶部 HUD */
+        .hud-top {
+            padding: 15px; display: flex; justify-content: space-between;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        }
+        .speed-box { text-align: left; }
+        .step-box { text-align: right; }
+        .big-text { font-size: 36px; font-weight: 800; text-shadow: 0 2px 4px rgba(0,0,0,0.5); font-variant-numeric: tabular-nums;}
+        .label { font-size: 12px; opacity: 0.8; text-transform: uppercase; }
+
+        /* 传感器指示灯 */
+        .sensor-indicator {
+            display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+            background: #333; margin-right: 5px; border: 1px solid #555;
+            transition: background 0.1s;
+        }
+        .sensor-active { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
+
+        /* 底部控制栏 */
+        .hud-bottom {
             padding: 20px;
-            box-sizing: border-box;
-            text-align: center;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            pointer-events: auto; /* 允许点击 */
         }
         
-        .btn {
-            background: linear-gradient(135deg, #4CAF50, #2E7D32);
-            border: none;
-            color: white;
-            padding: 15px 30px;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: bold;
-            margin: 10px 0;
-            width: 80%;
-            max-width: 300px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        }
-        .btn-blue { background: linear-gradient(135deg, #2196F3, #1565C0); }
-        .btn:disabled { opacity: 0.5; filter: grayscale(1); }
-
-        /* --- 沉浸式 UI (HUD) --- */
-        #hud {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            z-index: 10;
-            pointer-events: none; /* 让点击穿透到视频，除非点击按钮 */
-            display: none; /* 启动后显示 */
-        }
-
-        /* 左上角：速度仪表 */
-        .hud-top-left {
-            position: absolute;
-            top: 20px; left: 20px;
-            background: rgba(0, 0, 0, 0.3); /* 半透明 */
-            padding: 10px 15px;
-            border-radius: 12px;
-            backdrop-filter: blur(2px);
-            text-shadow: 1px 1px 2px black;
-        }
-        .speed-val { font-size: 32px; font-weight: 800; color: #fff; }
-        .speed-unit { font-size: 12px; color: #ddd; text-transform: uppercase; }
-
-        /* 右上角：步数 & 传感器状态 */
-        .hud-top-right {
-            position: absolute;
-            top: 20px; right: 20px;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 10px 15px;
-            border-radius: 12px;
-            text-align: right;
-        }
-        /* 传感器指示灯 */
-        .sensor-dot {
-            display: inline-block;
-            width: 10px; height: 10px;
-            border-radius: 50%;
-            background-color: #555;
-            margin-right: 5px;
-        }
-        .sensor-active { background-color: #0f0; box-shadow: 0 0 5px #0f0; }
-
-        /* 底部：进度条 */
-        .progress-wrapper {
-            position: absolute;
-            bottom: 0; left: 0;
-            width: 100%;
-            height: 8px;
-            background: rgba(255,255,255,0.2);
+        /* 进度条 */
+        .progress-track {
+            width: 100%; height: 6px; background: rgba(255,255,255,0.2);
+            border-radius: 3px; margin-bottom: 15px; overflow: hidden;
         }
         .progress-fill {
-            height: 100%;
-            width: 0%;
-            background: #4CAF50; /* 鲜艳的绿色 */
-            box-shadow: 0 0 10px rgba(76, 175, 80, 0.7);
-            transition: width 0.5s linear;
+            height: 100%; width: 0%; background: #00e676;
+            transition: width 0.2s linear;
         }
 
-        /* 底部控制按钮区 */
-        .controls-trigger {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            pointer-events: auto;
-            background: rgba(0,0,0,0.4);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-size: 14px;
+        /* 按钮 */
+        .btn {
+            background: #333; border: 1px solid #555; color: white;
+            padding: 10px 20px; border-radius: 30px; font-size: 14px;
+            margin-right: 10px; cursor: pointer;
         }
+        .btn-primary { background: #00e676; color: black; border: none; font-weight: bold; }
+        .btn-settings { width: 100%; margin-top: 10px; background: rgba(255,255,255,0.1); }
 
-        /* 设置面板 (Modal) */
-        #settings-modal {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 85%;
-            background: rgba(20, 20, 20, 0.95);
-            border: 1px solid #333;
-            border-radius: 15px;
-            padding: 20px;
-            z-index: 100;
-            display: none;
-            pointer-events: auto;
-            color: #eee;
+        /* 设置面板 */
+        #settings-panel {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: #1a1a1a; border-top-left-radius: 20px; border-top-right-radius: 20px;
+            padding: 20px; box-sizing: border-box; transform: translateY(110%);
+            transition: transform 0.3s ease-out; z-index: 20; pointer-events: auto;
         }
-        
-        .setting-row { margin-bottom: 15px; }
-        .setting-row label { display: block; margin-bottom: 5px; font-size: 14px; color: #aaa; }
-        .setting-row input[type=range] { width: 100%; }
-        .setting-row input[type=number] { 
-            background: #333; border: 1px solid #555; color: white; 
-            padding: 5px; border-radius: 4px; width: 60px;
-        }
+        #settings-panel.show { transform: translateY(0); }
 
-        .close-btn {
-            background: #444; width: 100%; padding: 10px; margin-top: 10px;
-        }
-        
-        /* 调试信息 */
-        #debug-text { font-size: 10px; color: #777; margin-top: 10px; word-break: break-all; }
+        .control-row { margin-bottom: 20px; }
+        .control-row label { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: #ccc; }
+        .control-row input[type=range] { width: 100%; height: 6px; background: #444; border-radius: 3px; outline: none; -webkit-appearance: none; }
+        .control-row input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #00e676; border-radius: 50%; }
 
+        /* 启动遮罩 */
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 50; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center;
+        }
     </style>
 </head>
 <body>
 
-    <!-- 1. 启动页 -->
-    <div id="overlay">
-        <h2 style="margin-bottom: 5px;">🏃 室内漫步者 V2</h2>
-        <p style="font-size: 12px; color: #888; margin-bottom: 30px;">
-            请确保您在 HTTPS 或 Localhost 环境下运行<br>否则安卓传感器可能不工作
+    <!-- 1. 启动屏幕 -->
+    <div id="start-screen">
+        <h1 style="color:#00e676; margin-bottom: 10px;">🏃 健身漫步 V3</h1>
+        <p style="color:#888; font-size: 13px; max-width: 80%; margin-bottom: 30px;">
+            修复：增加每步动力设置<br>修复：安卓视频卡顿问题
         </p>
-
-        <button class="btn btn-blue" onclick="document.getElementById('fileInput').click()">📂 1. 选择视频</button>
-        <input type="file" id="fileInput" accept="video/*" style="display:none" onchange="onFileSelected(this)">
         
-        <div id="file-info" style="color:#4CAF50; font-size:12px; height:20px; margin:5px 0;"></div>
-
-        <button id="start-btn" class="btn" onclick="enterApp()" disabled>🚀 2. 全屏开始</button>
+        <button class="btn" onclick="document.getElementById('videoFile').click()" style="padding: 15px 40px; font-size: 16px;">
+            📂 第一步：选择视频
+        </button>
+        <input type="file" id="videoFile" accept="video/*" style="display:none" onchange="handleFile(this)">
         
-        <!-- 无法使用传感器时的备用方案 -->
-        <button onclick="testMotion()" style="background:transparent; border:1px solid #444; color:#666; font-size:12px; padding:5px 10px; border-radius:10px; margin-top:20px;">
-            ⚠️ 传感器没反应？点此模拟一步
+        <div id="file-status" style="margin: 15px 0; font-size: 12px; color: #00e676; min-height: 20px;"></div>
+
+        <button id="go-btn" class="btn btn-primary" onclick="startGame()" disabled style="padding: 15px 40px; font-size: 18px; opacity: 0.5;">
+            🚀 第二步：开始运动
         </button>
     </div>
 
-    <!-- 2. 视频层 -->
+    <!-- 2. 视频容器 -->
     <div id="video-wrapper">
-        <video id="mainVideo" playsinline loop muted></video>
+        <video id="mainVideo" playsinline loop muted webkit-playsinline></video>
     </div>
 
-    <!-- 3. HUD 界面 (半透明覆盖) -->
-    <div id="hud">
-        <!-- 左上：速度 -->
-        <div class="hud-top-left">
-            <div><span class="speed-val" id="disp-speed">0.0</span> <span class="speed-unit">倍速</span></div>
-            <div style="font-size: 12px; color: #aaa;" id="disp-kmh">0 km/h</div>
+    <!-- 3. 主界面 (HUD) -->
+    <div id="ui-layer" style="display:none;">
+        <div class="hud-top">
+            <div class="speed-box">
+                <div class="label">播放倍速</div>
+                <div class="big-text" id="disp-rate">0.0</div>
+                <div class="label" id="disp-kmh" style="color:#00e676">0 km/h</div>
+            </div>
+            <div class="step-box">
+                <div class="label">步数 <span class="sensor-indicator" id="sensor-dot"></span></div>
+                <div class="big-text" id="disp-steps">0</div>
+                <div class="label" id="status-text">暂停中</div>
+            </div>
         </div>
 
-        <!-- 右上：状态 -->
-        <div class="hud-top-right">
-            <div><span class="sensor-dot" id="sensor-light"></span> <span id="disp-steps">0</span> 步</div>
-        </div>
-
-        <!-- 底部：设置按钮 -->
-        <button class="controls-trigger" onclick="toggleSettings()">⚙️ 设置 / 调试</button>
-
-        <!-- 底部：进度条 -->
-        <div class="progress-wrapper">
-            <div class="progress-fill" id="progress-bar"></div>
+        <div class="hud-bottom">
+            <div class="progress-track">
+                <div class="progress-fill" id="progress-bar"></div>
+            </div>
+            <button class="btn btn-settings" onclick="toggleSettings()">⚙️ 调整参数 / 调试</button>
         </div>
     </div>
 
-    <!-- 4. 设置面板 -->
-    <div id="settings-modal">
-        <h3 style="margin-top:0">设置</h3>
-        
-        <div class="setting-row">
-            <label>传感器灵敏度 (1-10, 越小越灵敏)</label>
-            <input type="range" id="sensitivity" min="1" max="10" value="3" oninput="updateVal('sens-val', this.value)">
-            <span id="sens-val" style="float:right; font-size:12px;">3</span>
+    <!-- 4. 设置与调试面板 -->
+    <div id="settings-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="margin:0">⚙️ 运动参数设置</h3>
+            <button class="btn" onclick="toggleSettings()" style="padding:5px 15px; font-size:12px">关闭</button>
         </div>
 
-        <div class="setting-row">
-            <label>原视频录制速度 (km/h)</label>
-            <input type="number" id="base-speed" value="5">
-        </div>
-        
-        <div class="setting-row">
-            <label>VR 视角校准</label>
-            <button onclick="recenterVR()" style="background:#333; color:white; border:1px solid #555; padding:5px 10px;">重置当前朝向为正前方</button>
+        <!-- 关键设置：每步动力 -->
+        <div class="control-row">
+            <label>
+                <span>⚡ 每步动力 (Step Gain)</span>
+                <span id="val-gain" style="color:#00e676">0.5</span>
+            </label>
+            <input type="range" id="inp-gain" min="0.1" max="2.0" step="0.1" value="0.5" oninput="updateConfig('gain', this.value)">
+            <div style="font-size:10px; color:#666; margin-top:5px;">值越大，走一步视频加速越快。</div>
         </div>
 
-        <div id="debug-text">传感器数据: 等待中...</div>
+        <!-- 关键设置：灵敏度 -->
+        <div class="control-row">
+            <label>
+                <span>📡 传感器灵敏度 (阈值)</span>
+                <span id="val-sens">3.0</span>
+            </label>
+            <input type="range" id="inp-sens" min="1.0" max="8.0" step="0.5" value="3.0" oninput="updateConfig('sens', this.value)">
+            <div style="font-size:10px; color:#666; margin-top:5px;">值越小越灵敏。如果不动也走，请调大。</div>
+        </div>
 
-        <button class="btn close-btn" onclick="toggleSettings()">关闭 / 返回运动</button>
+        <!-- 原视频速度 -->
+        <div class="control-row">
+            <label>
+                <span>🎥 原视频速度 (km/h)</span>
+                <span id="val-base">5</span>
+            </label>
+            <input type="range" id="inp-base" min="3" max="20" step="1" value="5" oninput="updateConfig('base', this.value)">
+        </div>
+
+        <div style="border-top:1px solid #333; padding-top:10px; margin-top:10px;">
+            <p style="font-size:12px; color:#888; margin-bottom:5px;">调试工具：</p>
+            <button class="btn" onclick="forcePlay()">强制播放(测试)</button>
+            <button class="btn" onclick="testStep()">模拟一步</button>
+            <div id="debug-log" style="font-size:10px; color:#555; margin-top:5px; font-family:monospace;">Logs...</div>
+        </div>
     </div>
 
     <script>
         // --- 核心变量 ---
         const video = document.getElementById('mainVideo');
-        const overlay = document.getElementById('overlay');
-        const hud = document.getElementById('hud');
-        const sensorLight = document.getElementById('sensor-light');
-        const debugText = document.getElementById('debug-text');
+        const uiLayer = document.getElementById('ui-layer');
+        const startScreen = document.getElementById('start-screen');
+        const sensorDot = document.getElementById('sensor-dot');
+        const debugLog = document.getElementById('debug-log');
         
-        // 运动状态
-        let lastAcc = { x:0, y:0, z:0 };
-        let lastTimestamp = 0;
-        let speedMultiplier = 0;
-        let targetMultiplier = 0;
+        // 物理引擎变量
+        let currentEnergy = 0; // 当前“能量”（对应播放速度）
         let stepCount = 0;
-        let isMoving = false;
-        let stopTimer = null;
-
-        // VR 状态
-        let initialAlpha = null; // 初始方向
-        let currentAlpha = 0;
+        let lastStepTime = 0;
+        
+        // VR变量
+        let initialAlpha = null;
         let isLandscape = true;
 
-        // 配置
-        let config = {
-            sensitivity: 3, // 阈值，越低越容易触发
-            decay: 0.05,    // 减速惯性
-            baseSpeed: 5,   // 视频基准速度
-            stepGain: 0.3   // 每一步增加多少速度
+        // 配置 (默认值)
+        const config = {
+            gain: 0.5,      // 每步增加多少速度 (0.1 - 2.0)
+            friction: 0.98, // 每一帧能量衰减系数 (0.90 - 0.99)
+            sensitivity: 3.0, // 触发阈值
+            baseSpeed: 5    // 视频基准速度
         };
 
-        // --- 1. 文件与启动 ---
-        function onFileSelected(input) {
+        // --- 1. 初始化与文件 ---
+        function handleFile(input) {
             const file = input.files[0];
             if(file) {
                 video.src = URL.createObjectURL(file);
-                document.getElementById('file-info').innerText = "已加载: " + file.name;
-                document.getElementById('start-btn').disabled = false;
+                document.getElementById('file-status').innerText = "已加载: " + file.name;
+                const goBtn = document.getElementById('go-btn');
+                goBtn.disabled = false;
+                goBtn.style.opacity = 1;
 
-                // 判断横竖屏
+                // 简单的VR判断
                 video.onloadedmetadata = () => {
                     isLandscape = video.videoWidth > video.videoHeight;
-                    // 如果是横屏视频，且在手机竖屏上看，开启VR模式（高度铺满）
                     if(isLandscape) {
-                        video.style.width = 'auto';
-                        video.style.height = '100vh';
+                        video.style.height = "100vh";
+                        video.style.width = "auto"; // 允许溢出
                     } else {
-                        video.style.width = '100%';
-                        video.style.height = '100%';
+                        video.style.width = "100%";
+                        video.style.height = "100%";
                     }
                 };
             }
         }
 
-        function enterApp() {
-            // 尝试全屏
-            const docEl = document.documentElement;
-            if (docEl.requestFullscreen) { docEl.requestFullscreen(); }
-            else if (docEl.webkitRequestFullscreen) { docEl.webkitRequestFullscreen(); }
-
-            // 隐藏启动页，显示HUD
-            overlay.style.display = 'none';
-            hud.style.display = 'block';
-
-            // 播放视频（初始速度0）
-            video.play().then(() => {
-                video.playbackRate = 0;
-            }).catch(e => alert("播放失败: " + e));
-
-            // 初始化传感器
-            initSensors();
+        function startGame() {
+            // 请求全屏
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
             
-            // 开启主循环
+            startScreen.style.display = 'none';
+            uiLayer.style.display = 'flex';
+
+            // 关键：先播放一下，确保引擎激活，然后暂停
+            video.play().then(() => {
+                video.pause(); 
+                log("Video initialized.");
+            }).catch(e => log("Init Err: " + e.message));
+
+            initSensors();
             requestAnimationFrame(gameLoop);
         }
 
-        // --- 2. 传感器逻辑 (核心) ---
+        // --- 2. 传感器逻辑 ---
         function initSensors() {
-            // iOS 权限请求
             if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(response => {
-                    if (response == 'granted') bindEvents();
-                }).catch(console.error);
+                DeviceMotionEvent.requestPermission().then(res => {
+                    if (res === 'granted') bindEvents();
+                    else alert("需要传感器权限才能运行");
+                });
             } else {
-                // Android / 普通浏览器直接绑定
                 bindEvents();
             }
         }
 
         function bindEvents() {
-            window.addEventListener('devicemotion', handleMotion);
-            window.addEventListener('deviceorientation', handleOrientation);
+            window.addEventListener('devicemotion', (e) => {
+                // 计算加速度变化
+                let acc = e.accelerationIncludingGravity || e.acceleration;
+                if (!acc) return;
+
+                // 简单的去重力算法：计算总向量长度，减去重力(约9.8)
+                let total = Math.sqrt(acc.x*acc.x + acc.y*acc.y + acc.z*acc.z);
+                let delta = Math.abs(total - 9.8);
+
+                // 触发判断
+                if (delta > config.sensitivity) {
+                    onStepDetected();
+                }
+            });
+
+            window.addEventListener('deviceorientation', (e) => {
+                if(!isLandscape || !e.alpha) return;
+                if(initialAlpha === null) initialAlpha = e.alpha;
+                
+                let diff = e.alpha - initialAlpha;
+                if(diff > 180) diff -= 360;
+                if(diff < -180) diff += 360;
+                
+                // VR 平移效果
+                video.style.transform = `translateX(${-diff * 0.5}%) scale(1.05)`;
+            });
         }
 
-        function handleMotion(event) {
-            // 获取加速度 (Android上可能需要accelerationIncludingGravity)
-            let acc = event.acceleration;
-            let accG = event.accelerationIncludingGravity;
-
-            // 兼容性处理：如果acceleration全是null，就用带重力的
-            if(!acc || (acc.x === null && acc.y === null)) {
-                acc = accG;
-            }
-
-            if(!acc) {
-                debugText.innerText = "错误：无法获取加速度数据";
-                return;
-            }
-
-            // 调试显示
-            debugText.innerText = `X:${acc.x?.toFixed(1)} Y:${acc.y?.toFixed(1)} Z:${acc.z?.toFixed(1)}`;
-
-            // 计算震动强度 (简单的向量差值)
-            // 如果是用acceleration (无重力)，静止是0。
-            // 如果是用IncludingGravity，静止是9.8。
-            
-            let strength = 0;
-            if (event.acceleration && event.acceleration.x !== null) {
-                // 纯加速度，直接算模长
-                strength = Math.sqrt(acc.x**2 + acc.y**2 + acc.z**2);
-            } else {
-                // 带重力，减去重力
-                const total = Math.sqrt(accG.x**2 + accG.y**2 + accG.z**2);
-                strength = Math.abs(total - 9.8);
-            }
-
-            // 阈值判断
-            const threshold = parseFloat(document.getElementById('sensitivity').value) || 3;
-
-            if (strength > threshold) {
-                triggerStep();
-            }
-        }
-
-        // 触发一步
-        function triggerStep() {
+        // --- 3. 核心：动力引擎 ---
+        function onStepDetected() {
             const now = Date.now();
-            if (now - lastTimestamp > 300) { // 防抖，两次步伐至少间隔300ms
-                lastTimestamp = now;
+            if (now - lastStepTime > 300) { // 防抖动：300毫秒内只能触发一次
+                lastStepTime = now;
                 stepCount++;
                 
                 // 视觉反馈
-                sensorLight.classList.add('sensor-active');
-                setTimeout(() => sensorLight.classList.remove('sensor-active'), 150);
-                
+                sensorDot.classList.add('sensor-active');
+                setTimeout(() => sensorDot.classList.remove('sensor-active'), 100);
                 document.getElementById('disp-steps').innerText = stepCount;
 
-                // 增加速度倍率 (每次触发增加一点，最高限制)
-                // 比如每走一步，倍率增加到 1.5x，如果不走，慢慢掉下来
-                targetMultiplier = 1.5; 
+                // --- 增加能量 ---
+                // 这就是你要的“每步速度”逻辑
+                // 每次触发，直接往 currentEnergy 里加数
+                // 设置上限，防止加到10倍速太离谱
+                currentEnergy += parseFloat(config.gain); 
+                if(currentEnergy > 4.0) currentEnergy = 4.0;
                 
-                // 如果走得非常快（间隔短），倍率更高
-                // 这里做一个简单逻辑：只要在走，就保持速度
-                if (stopTimer) clearTimeout(stopTimer);
-                stopTimer = setTimeout(() => {
-                    targetMultiplier = 0; // 1.5秒没动，目标速度归零
-                }, 1500);
+                log("Step! Energy: " + currentEnergy.toFixed(2));
             }
         }
 
-        // 手动测试按钮 (用于传感器失效时测试)
-        function testMotion() {
-             alert("模拟触发了一步！如果没有反应，请检查是否选择了视频。");
-             triggerStep();
-             // 强制启动
-             if(overlay.style.display !== 'none') enterApp();
-        }
-
-        // VR 视角逻辑
-        function handleOrientation(event) {
-            if (!isLandscape) return;
-            
-            // alpha: 0-360 指南针方向
-            let alpha = event.alpha;
-            if (alpha === null) return;
-
-            if (initialAlpha === null) initialAlpha = alpha;
-
-            // 计算角度差 (-180 ~ 180)
-            let delta = alpha - initialAlpha;
-            if (delta > 180) delta -= 360;
-            if (delta < -180) delta += 360;
-
-            // 映射到位移. 假设90度移动50%
-            // 使用 CSS transform
-            const movePercent = -(delta * 0.8); 
-            video.style.transform = `translateX(${movePercent}%) scale(1.1)`;
-        }
-
-        function recenterVR() {
-            initialAlpha = null; // 下一次事件会自动重置
-        }
-
-        // --- 3. 游戏主循环 (平滑处理) ---
+        // --- 4. 游戏循环 (每一帧都运行) ---
         function gameLoop() {
-            // 平滑变速：当前速度向目标速度靠近
-            const diff = targetMultiplier - speedMultiplier;
-            
-            if (Math.abs(diff) > 0.01) {
-                speedMultiplier += diff * config.decay; // 渐变
-            } else {
-                speedMultiplier = targetMultiplier;
+            // 能量自然衰减 (摩擦力)
+            currentEnergy *= config.friction;
+
+            // 阈值处理：如果能量太小，直接归零，防止无限接近0但不停止
+            if (currentEnergy < 0.1) {
+                currentEnergy = 0;
             }
 
-            // 更新视频播放率
-            // 只有当大于0.1才播放，否则暂停以节省资源或避免鬼畜
-            if (speedMultiplier < 0.1) {
-                if(!video.paused) video.pause(); // 完全停下
-                speedMultiplier = 0;
-            } else {
-                if(video.paused) video.play();
-                video.playbackRate = speedMultiplier;
-            }
-
-            // 更新UI文字
-            document.getElementById('disp-speed').innerText = speedMultiplier.toFixed(1);
-            
-            // 估算 km/h
-            const base = parseFloat(document.getElementById('base-speed').value);
-            const realSpeed = base * speedMultiplier;
+            // 更新 UI
+            document.getElementById('disp-rate').innerText = currentEnergy.toFixed(1);
+            let realSpeed = currentEnergy * config.baseSpeed;
             document.getElementById('disp-kmh').innerText = realSpeed.toFixed(1) + " km/h";
 
-            // 更新进度条
-            if (video.duration) {
+            // --- 视频播放控制 (关键修正) ---
+            if (currentEnergy > 0) {
+                // 应该播放
+                video.playbackRate = currentEnergy;
+                if (video.paused) {
+                    let p = video.play();
+                    if(p) p.catch(e => { /* 忽略频繁切换导致的错误 */ });
+                    document.getElementById('status-text').innerText = "行进中";
+                    document.getElementById('status-text').style.color = "#00e676";
+                }
+            } else {
+                // 应该暂停
+                if (!video.paused) {
+                    video.pause();
+                    document.getElementById('status-text').innerText = "已停止";
+                    document.getElementById('status-text').style.color = "#888";
+                }
+            }
+
+            // 进度条
+            if(video.duration) {
                 const pct = (video.currentTime / video.duration) * 100;
                 document.getElementById('progress-bar').style.width = pct + "%";
             }
@@ -477,14 +363,36 @@
             requestAnimationFrame(gameLoop);
         }
 
-        // --- 辅助功能 ---
+        // --- 5. 设置与调试工具 ---
         function toggleSettings() {
-            const el = document.getElementById('settings-modal');
-            el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+            const panel = document.getElementById('settings-panel');
+            panel.classList.toggle('show');
         }
-        
-        function updateVal(id, val) {
-            document.getElementById(id).innerText = val;
+
+        function updateConfig(key, val) {
+            // 更新配置并显示数值
+            val = parseFloat(val);
+            config[key] = val;
+            
+            // 更新显示的数字
+            if(key === 'gain') document.getElementById('val-gain').innerText = val.toFixed(1);
+            if(key === 'sens') document.getElementById('val-sens').innerText = val.toFixed(1);
+            if(key === 'base') document.getElementById('val-base').innerText = val;
+        }
+
+        function log(msg) {
+            debugLog.innerText = msg;
+            console.log(msg);
+        }
+
+        // 调试用：强制模拟
+        function testStep() {
+            onStepDetected();
+        }
+        function forcePlay() {
+            video.play();
+            video.playbackRate = 1.0;
+            currentEnergy = 1.0;
         }
 
     </script>
